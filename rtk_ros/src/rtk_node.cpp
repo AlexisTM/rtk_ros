@@ -14,8 +14,8 @@ int main(int argc, char *argv[])
     ros::NodeHandle nh;
     ros::NodeHandle pnh("~");
 
-    std::string port = "/dev/ttyUSB0";
-    int32_t baud = 9600;
+    std::string port = "/dev/ttyACM1";
+    int32_t baud = 0;
     float surveyAccuracy = 1.0;
     float surveyDuration = 90.0;
 

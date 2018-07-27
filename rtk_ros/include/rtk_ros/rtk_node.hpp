@@ -22,12 +22,12 @@ class RTKNode
 {
 public:
 	RTKNode(unsigned _baud = 0, 
-        std::string _port = std::string("/dev/ttyUSB0"), 
+        std::string _port = std::string("/dev/ttyACM0"), 
         float _surveyAccuracy = 1.0,
         float _surveyDuration = 90.0): 
         connected(false), baud(_baud), port(_port),
         surveyAccuracy(_surveyAccuracy), surveyDuration(_surveyDuration) {
-
+            surveyInStatus = new SurveyInStatus();
     };
 	~RTKNode() {
         if (gpsDriver) {
@@ -41,6 +41,10 @@ public:
         if (pReportSatInfo) {
             delete pReportSatInfo;
             pReportSatInfo = nullptr;
+        }
+        if (surveyInStatus) {
+            delete surveyInStatus;
+            surveyInStatus = nullptr;
         }
     };
 
@@ -56,19 +60,22 @@ public:
                 ROS_DEBUG("Trying to connect to the serial port");
                 serial->open();
             } catch (serial::IOException) {
+            } catch (...) {
+                ROS_FATAL("Other serial port exception");
             }
 
             if (serial->isOpen()) {
-            connected = true;
-            return;
+                connected = true;
+                return;
             } else {
-            connected = false;
-            ROS_INFO_STREAM("Bad Connection with serial port Error " << port);
+                connected = false;
+                ROS_INFO_STREAM("Bad Connection with serial port Error " << port);
             }
         }
     };
 
     void configure() {
+        ROS_WARN("Configuration");
         if (gpsDriver->configure(baud, GPSDriverUBX::OutputMode::RTCM) == 0) {
 
             /* reset report */
@@ -80,17 +87,20 @@ public:
 
             while (ros::ok() && numTries < 3) {
                 int helperRet = gpsDriver->receive(500);
+                ROS_WARN("Reading data");
 
                 if (helperRet > 0) {
                     numTries = 0;
 
                     if (helperRet & 1) {
                         publishGPSPosition();
+                        ROS_WARN("Got GPS position");
                         numTries = 0;
                     }
 
                     if (pReportSatInfo && (helperRet & 2)) {
                         publishGPSSatellite();
+                        ROS_WARN("Got GPS Satellites");
                         numTries = 0;
                     }
                 } else {
@@ -102,65 +112,86 @@ public:
 
     void publishGPSPosition() {
         
+        ROS_WARN("Publish pose");
     };
 
     void publishGPSSatellite() {
         
+        ROS_WARN("Publish sat");
     };
 
     void connect_gps() {
         // dynamic model
         uint8_t stationary_model = 2;
+        ROS_WARN("Connect Driver");
         gpsDriver = new GPSDriverUBX(GPSDriverUBX::Interface::UART, &callbackEntry, this, &reportGPSPos, pReportSatInfo, stationary_model);
         gpsDriver->setSurveyInSpecs(surveyAccuracy * 10000, surveyDuration);
+        ROS_WARN("Configure survey");
         memset(&reportGPSPos, 0, sizeof(reportGPSPos)); // Reset report
     };
 
 
     static int callbackEntry(GPSCallbackType type, void *data1, int data2, void *user)
-    {
-        // GPSProvider *gps = (GPSProvider *)user;
-        // return gps->callback(type, data1, data2);
-        callback(type, data1, data2);
+    {   
+        ROS_WARN("Got data");
+        RTKNode *node = (RTKNode *)user;
+        return node->callback(type, data1, data2);
     };
 
-    static int callback(GPSCallbackType type, void *data1, int data2)
+
+    void gotRTCMData(uint8_t *data, size_t len) {
+        
+        ROS_WARN("Publish RTCM");
+    }
+
+    int callback(GPSCallbackType type, void *data1, int data2)
     {
-        // switch (type) {
-        //     case GPSCallbackType::readDeviceData: {
-        //         if (serial->bytesAvailable() == 0) {
-        //             int timeout = *((int *) data1);
-        //             if (!serial->waitForReadyRead(timeout))
-        //                 return 0; //timeout
-        //         }
-        //         return (int)serial->read((char*) data1, data2);
-        //     }
-        //     case GPSCallbackType::writeDeviceData:
-        //         if (serial->write((char*) data1, data2) >= 0) {
-        //             if (serial->waitForBytesWritten(-1))
-        //                 return data2;
-        //         }
-        //         return -1;
+        switch (type) {
+            case GPSCallbackType::readDeviceData: {
+                ROS_WARN("Read device data");
+                if (serial->available()) {
+                    uint32_t timeout = 1;
+                    serial->waitByteTimes(timeout);
+                    if (!serial->available())
+                        return 0; //timeout
+                }
+                return (int)serial->read((uint8_t*) data1, data2);
+            }
+            case GPSCallbackType::writeDeviceData:
+                ROS_WARN("Write device data");
+                if (serial->write((uint8_t*) data1, data2) >= 0) {
+                    if (serial->available())
+                        return data2;
+                }
+                return -1;
 
-        //     case GPSCallbackType::setBaudrate:
-        //         return serial->setBaudrate(data2) ? 0 : -1;
+            case GPSCallbackType::setBaudrate:
+                ROS_WARN("Set baudrate");
+                serial->setBaudrate((uint32_t) data2);
+                return 0;
 
-        //     case GPSCallbackType::gotRTCMMessage:
-        //         gotRTCMData((uint8_t*) data1, data2);
-        //         break;
+            case GPSCallbackType::gotRTCMMessage:
+                ROS_WARN("RTCM");
+                gotRTCMData((uint8_t*) data1, data2);
+                break;
 
-        //     case GPSCallbackType::surveyInStatus:
-        //     {
-        //         SurveyInStatus* status = (SurveyInStatus*)data1;
-        //         qCDebug(RTKGPSLog) << QString("Survey-in status: %1s cur accuracy: %2mm valid: %3 active: %4").arg(status->duration).arg(status->mean_accuracy).arg((int)(status->flags & 1)).arg((int)((status->flags>>1) & 1));
-        //         emit surveyInStatus(status->duration, status->mean_accuracy, (int)(status->flags & 1), (int)((status->flags>>1) & 1));
-        //     }
-        //         break;
+            case GPSCallbackType::surveyInStatus:
+            {
+                ROS_WARN("Survey");
+                surveyInStatus = (SurveyInStatus*)data1;
+                ROS_DEBUG_STREAM("Survey-in status: " << surveyInStatus->duration  << " cur accuracy: " << surveyInStatus->mean_accuracy 
+                        << " valid:" << (int)(surveyInStatus->flags & 1) << " active: " << (int)((surveyInStatus->flags>>1) & 1));
+                break;
+            }
 
-        //     case GPSCallbackType::setClock:
-        //         /* do nothing */
-        //         break;
-        // }
+            case GPSCallbackType::setClock:
+                /* do nothing */
+                break;
+
+            default:
+                /* do nothing */
+                break;
+        }
 
         // return 0;
     };
@@ -172,6 +203,7 @@ private:
     std::string port;
     float surveyAccuracy;
     float surveyDuration;
+    SurveyInStatus* surveyInStatus = nullptr;
     GPSHelper* gpsDriver = nullptr;
     serial::Serial* serial = nullptr;
 	struct vehicle_gps_position_s	reportGPSPos;

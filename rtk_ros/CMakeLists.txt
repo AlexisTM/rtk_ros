@@ -121,38 +121,21 @@ include_directories(
 )
 
 ## Declare a C++ library
-add_library(rtk_ros_ashtech
+add_library(rtk_ros_lib
   include/${PROJECT_NAME}/GpsDrivers/src/ashtech.cpp
-)
-add_dependencies(rtk_ros_ashtech ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
-add_library(rtk_ros_lib_mtk
-  include/${PROJECT_NAME}/GpsDrivers/src/mtk.cpp
-)
-add_dependencies(rtk_ros_lib_mtk ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
-add_library(rtk_ros_lib_rtcm
   include/${PROJECT_NAME}/GpsDrivers/src/rtcm.cpp
-)
-add_dependencies(rtk_ros_lib_rtcm ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
-add_library(rtk_ros_lib_helper
+  include/${PROJECT_NAME}/GpsDrivers/src/mtk.cpp
   include/${PROJECT_NAME}/GpsDrivers/src/gps_helper.cpp
-)
-add_dependencies(rtk_ros_lib_helper ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
-add_library(rtk_ros_lib_ubx
   include/${PROJECT_NAME}/GpsDrivers/src/ubx.cpp
 )
-add_dependencies(rtk_ros_lib_ubx ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(rtk_ros_lib ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 
 add_executable(rtk_node src/rtk_node.cpp)
 add_dependencies(rtk_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
-## Specify libraries to link a library or executable target against
 target_link_libraries(rtk_node
   ${catkin_LIBRARIES}
+  rtk_ros_lib
 )
 
 #############
