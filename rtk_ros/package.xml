@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>rtk_ros</name>
+  <version>0.1.0</version>
+  <description>The rtk_ros package that publishes RTCM data from RTK packages.</description>
+
+  <author email="alexis.paques@gmail.com">Alexis Paques</author>
+  <maintainer email="alexis.paques@gmail.com">Alexis Paques</maintainer>
+  <license>MIT</license>
+  <!-- <url type="website">http://wiki.ros.org/rtk_ros</url> -->
+
+  <!-- The *depend tags are used to specify dependencies -->
+  <!-- Dependencies can be catkin packages or system dependencies -->
+  <!-- Examples: -->
+  <!-- Use depend as a shortcut for packages that are both build and exec dependencies -->
+  <depend>roscpp</depend>
+  <depend>serial</depend>
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>mavros_msgs</build_depend>
+  <build_export_depend>mavros_msgs</build_export_depend>
+  <exec_depend>mavros_msgs</exec_depend>
+
+  <export>
+  </export>
+</package>
