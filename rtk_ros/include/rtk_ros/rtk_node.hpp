@@ -76,6 +76,8 @@ public:
 
             if (serial->isOpen()) {
                 connected = true;
+                serial::Timeout timeout = serial::Timeout::simpleTimeout(500);
+                serial->setTimeout(timeout);
                 return;
             } else {
                 connected = false;
@@ -84,8 +86,8 @@ public:
         }
     };
 
-    void configure() {
-        ROS_WARN("Configuration");
+    void run() {
+        ROS_WARN("Running");
         if (gpsDriver->configure(baud, GPSDriverUBX::OutputMode::RTCM) == 0) {
 
             /* reset report */
@@ -96,7 +98,8 @@ public:
             int numTries = 0;
 
             while (ros::ok() && numTries < 3) {
-                int helperRet = gpsDriver->receive(500);
+                ROS_WARN_STREAM("status: " << ros::ok());
+                int helperRet = gpsDriver->receive(100);
                 ROS_WARN("Reading data");
 
                 if (helperRet > 0) {
@@ -122,6 +125,8 @@ public:
             //     break;
             // }
         }
+
+        ROS_WARN("End of running");
     };
 
     void publishGPSPosition() {
@@ -146,8 +151,7 @@ public:
 
 
     static int callbackEntry(GPSCallbackType type, void *data1, int data2, void *user)
-    {   
-        ROS_WARN("Got data");
+    {
         RTKNode *node = (RTKNode *)user;
         return node->callback(type, data1, data2);
     };
@@ -163,39 +167,38 @@ public:
         int bytes_written = 0;
         switch (type) {
             case GPSCallbackType::readDeviceData: {
-                ROS_WARN("Read device data");
+                ROS_WARN("Read more data");
                 
                 if (serial->available() == 0) {
                     int timeout = *((int *) data1);
                     //if (!_serial->waitForReadyRead(timeout))
-                    if (!serial->waitForChange())
+                    if (!serial->waitReadable())
                         return 0; // error, no new data
                 }
                 return (int)serial->read((uint8_t *) data1, data2);
             }
-            case GPSCallbackType::writeDeviceData:
+            case GPSCallbackType::writeDeviceData: {
                 ROS_WARN("Write device data");
                 bytes_written = serial->write((uint8_t *) data1, data2);
                 if (bytes_written == data2) {
                     return data2;
                 }
                 return -1;
+            }
 
-            case GPSCallbackType::setBaudrate:
-                {
-                    ROS_WARN("Set baudrate");
-                    serial->setBaudrate(data2);
-                    return true;
+            case GPSCallbackType::setBaudrate: {
+                ROS_WARN("Set baudrate");
+                serial->setBaudrate(data2);
+                return true;
+            }
 
-                }
-
-            case GPSCallbackType::gotRTCMMessage:
+            case GPSCallbackType::gotRTCMMessage: {
                 ROS_WARN("RTCM");
                 gotRTCMData((uint8_t*) data1, data2);
                 break;
+            }
 
-            case GPSCallbackType::surveyInStatus:
-            {
+            case GPSCallbackType::surveyInStatus: {
                 ROS_WARN("Survey");
                 surveyInStatus = (SurveyInStatus*)data1;
                 ROS_DEBUG_STREAM("Survey-in status: " << surveyInStatus->duration  << " cur accuracy: " << surveyInStatus->mean_accuracy 
@@ -204,10 +207,11 @@ public:
             }
 
             case GPSCallbackType::setClock:
-                /* do nothing */
+                ROS_WARN("Set clock");
                 break;
         }
 
+        ROS_WARN("Do nothing");
         return 0;
     };
 

@@ -14,8 +14,8 @@ int main(int argc, char *argv[])
     ros::NodeHandle nh;
     ros::NodeHandle pnh("~");
 
-    std::string port = "/dev/ttyACM1";
-    int32_t baud = 0;
+    std::string port = "/dev/ttyACM0";
+    int32_t baud = 19200;
     float surveyAccuracy = 1.0;
     float surveyDuration = 90.0;
 
@@ -28,8 +28,6 @@ int main(int argc, char *argv[])
 
     rtknode.connect();
     rtknode.connect_gps();
-    rtknode.configure();
-
-    ros::spin();
+    rtknode.run();
     return 0;
 }
