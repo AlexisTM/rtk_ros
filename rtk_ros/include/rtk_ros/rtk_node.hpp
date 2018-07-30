@@ -11,6 +11,7 @@
 #include <iostream>
 
 #include <ros/ros.h>
+
 #include <serial/serial.h>
 #include <mavros_msgs/RTCM.h>
 #include <rtk_ros/GpsDrivers/src/ubx.h>
@@ -22,9 +23,9 @@ class RTKNode
 {
 public:
 	RTKNode(unsigned _baud = 0, 
-        std::string _port = std::string("/dev/ttyACM0"), 
+        std::string _port = std::string("/dev/ttyACM0"),
         float _surveyAccuracy = 1.0,
-        float _surveyDuration = 90.0): 
+        float _surveyDuration = 90.0):
         connected(false), baud(_baud), port(_port),
         surveyAccuracy(_surveyAccuracy), surveyDuration(_surveyDuration) {
             surveyInStatus = new SurveyInStatus();
@@ -48,12 +49,21 @@ public:
         }
     };
 
+
     void connect() {
         if (!serial) serial = new serial::Serial();
-        serial::Timeout to(serial::Timeout::simpleTimeout(500));
-        serial->setTimeout(to);
         serial->setPort(port);
+
+        serial->open();
+        if (!serial->isOpen()) {
+            ROS_WARN_STREAM("GPS: Failed to open Serial Device: " << port);
+            return;
+        }
         serial->setBaudrate(baud);
+        serial->setBytesize(serial::eightbits);
+        serial->setParity(serial::parity_none);
+        serial->setStopbits(serial::stopbits_one);
+        serial->setFlowcontrol(serial::flowcontrol_none);
 
         for (int tries = 0; tries < 5; tries++) {
             try {
@@ -107,6 +117,10 @@ public:
                     ++numTries;
                 }
             }
+
+            // if (_serial->error() != Serial::NoError && _serial->error() != Serial::TimeoutError) {
+            //     break;
+            // }
         }
     };
 
@@ -146,29 +160,34 @@ public:
 
     int callback(GPSCallbackType type, void *data1, int data2)
     {
+        int bytes_written = 0;
         switch (type) {
             case GPSCallbackType::readDeviceData: {
                 ROS_WARN("Read device data");
-                if (serial->available()) {
-                    uint32_t timeout = 1;
-                    serial->waitByteTimes(timeout);
-                    if (!serial->available())
-                        return 0; //timeout
+                
+                if (serial->available() == 0) {
+                    int timeout = *((int *) data1);
+                    //if (!_serial->waitForReadyRead(timeout))
+                    if (!serial->waitForChange())
+                        return 0; // error, no new data
                 }
-                return (int)serial->read((uint8_t*) data1, data2);
+                return (int)serial->read((uint8_t *) data1, data2);
             }
             case GPSCallbackType::writeDeviceData:
                 ROS_WARN("Write device data");
-                if (serial->write((uint8_t*) data1, data2) >= 0) {
-                    if (serial->available())
-                        return data2;
+                bytes_written = serial->write((uint8_t *) data1, data2);
+                if (bytes_written == data2) {
+                    return data2;
                 }
                 return -1;
 
             case GPSCallbackType::setBaudrate:
-                ROS_WARN("Set baudrate");
-                serial->setBaudrate((uint32_t) data2);
-                return 0;
+                {
+                    ROS_WARN("Set baudrate");
+                    serial->setBaudrate(data2);
+                    return true;
+
+                }
 
             case GPSCallbackType::gotRTCMMessage:
                 ROS_WARN("RTCM");
@@ -187,13 +206,9 @@ public:
             case GPSCallbackType::setClock:
                 /* do nothing */
                 break;
-
-            default:
-                /* do nothing */
-                break;
         }
 
-        // return 0;
+        return 0;
     };
 
 
