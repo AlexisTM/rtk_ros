@@ -16,15 +16,15 @@ int main(int argc, char *argv[])
 
     std::string port = "/dev/ttyACM0";
     int32_t baud = 19200;
-    float surveyAccuracy = 1.0;
-    float surveyDuration = 90.0;
+    float surveyAccuracy = 4.0;
+    float surveyDuration = 15.0;
 
     pnh.param<std::string>("port", port, port);
     pnh.param<int32_t>("baud", baud, baud);
     pnh.param<float>("survey/accuracy", surveyAccuracy, surveyAccuracy);
     pnh.param<float>("survey/duration", surveyDuration, surveyDuration);
 
-    RTKNode rtknode(baud, port, surveyAccuracy, surveyDuration);
+    RTKNode rtknode(&nh, baud, port, surveyAccuracy, surveyDuration);
 
     rtknode.connect();
     rtknode.connect_gps();

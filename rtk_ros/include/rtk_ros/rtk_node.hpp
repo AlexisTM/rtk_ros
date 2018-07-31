@@ -14,6 +14,7 @@
 
 #include <serial/serial.h>
 #include <mavros_msgs/RTCM.h>
+#include <sensor_msgs/NavSatFix.h>
 #include <rtk_ros/GpsDrivers/src/ubx.h>
 #include <rtk_ros/GpsDrivers/src/ashtech.h>
 #include <rtk_ros/GpsDrivers/src/gps_helper.h>
@@ -22,13 +23,17 @@
 class RTKNode
 {
 public:
-	RTKNode(unsigned _baud = 0, 
+	RTKNode(ros::NodeHandle * _nh,
+        unsigned _baud = 0, 
         std::string _port = std::string("/dev/ttyACM0"),
         float _surveyAccuracy = 1.0,
         float _surveyDuration = 90.0):
         connected(false), baud(_baud), port(_port),
-        surveyAccuracy(_surveyAccuracy), surveyDuration(_surveyDuration) {
+        surveyAccuracy(_surveyAccuracy), surveyDuration(_surveyDuration), nh(_nh) {
             surveyInStatus = new SurveyInStatus();
+            pReportSatInfo = new satellite_info_s();
+            RTCMPublisher = nh->advertise<mavros_msgs::RTCM>("rtcm_out", 1);
+            GPSPublisher = nh->advertise<sensor_msgs::NavSatFix>("gps", 1);
     };
 	~RTKNode() {
         if (gpsDriver) {
@@ -45,6 +50,17 @@ public:
         }
     };
 
+    int status_px4_to_ros(int status) {
+        if(status == 0) return -1;
+        if(status == 1) return -1;
+        if(status == 2) return -1;
+        if(status == 3) return 0; // FIX
+        if(status == 4) return 2; // Sat augmentation
+        if(status == 5) return 2; //
+        if(status == 6) return 2;
+        if(status == 8) return 1;
+        else return -1;
+    }
 
     void connect() {
         if (!serial) serial = new serial::Serial();
@@ -94,22 +110,19 @@ public:
             int numTries = 0;
 
             while (ros::ok() && numTries < 3) {
-                ROS_WARN_STREAM("status: " << ros::ok());
                 int helperRet = gpsDriver->receive(100);
-                ROS_WARN("Reading data");
+                ROS_DEBUG("Reading data");
 
                 if (helperRet > 0) {
                     numTries = 0;
 
                     if (helperRet & 1) {
                         publishGPSPosition();
-                        ROS_WARN("Got GPS position");
                         numTries = 0;
                     }
 
                     if (pReportSatInfo && (helperRet & 2)) {
                         publishGPSSatellite();
-                        ROS_WARN("Got GPS Satellites");
                         numTries = 0;
                     }
                 } else {
@@ -126,13 +139,32 @@ public:
     };
 
     void publishGPSPosition() {
-        
-        ROS_WARN("Publish pose");
+        // reportGPSPos
+        sensor_msgs::NavSatFix msg;
+        msg.header.stamp = ros::Time::now();
+        msg.header.frame_id = "rtk_base";
+        msg.altitude = reportGPSPos.alt;
+        msg.longitude = reportGPSPos.lon;
+        msg.latitude = reportGPSPos.lat;
+        msg.status.status = status_px4_to_ros(reportGPSPos.fix_type);
+        msg.status.service = msg.status.SERVICE_GPS;
+        msg.position_covariance[0] = reportGPSPos.eph; // or hdop
+        msg.position_covariance[4] = reportGPSPos.eph; // or hdop
+        msg.position_covariance[8] = reportGPSPos.epv; // or vdop
+        msg.position_covariance_type = sensor_msgs::NavSatFix::COVARIANCE_TYPE_APPROXIMATED;
+        ROS_WARN_STREAM("** Publish pose **" 
+            << std::endl << "altitude: " << reportGPSPos.alt
+            << std::endl << "fix type: " << reportGPSPos.fix_type
+            << std::endl << "HDOP: "     << reportGPSPos.hdop << "\t VDOP" << reportGPSPos.vdop
+            << std::endl << "lat: " << reportGPSPos.lat << "\t lon:" << reportGPSPos.lon
+            << std::endl << "heading: " << reportGPSPos.heading
+            << std::endl << "sat used: " << reportGPSPos.satellites_used);
+        GPSPublisher.publish(msg);
     };
 
     void publishGPSSatellite() {
-        
-        ROS_WARN("Publish sat");
+        ROS_WARN_STREAM("*****I see " << pReportSatInfo->count << " sattelites");
+        // pReportSatInfo
     };
 
     void connect_gps() {
@@ -154,7 +186,10 @@ public:
 
 
     void gotRTCMData(uint8_t *data, size_t len) {
-        
+        mavros_msgs::RTCM msg;
+        msg.data.resize(len);
+        msg.data.assign(data, data + len);
+        RTCMPublisher.publish(msg);
         ROS_WARN("Publish RTCM");
     }
 
@@ -214,6 +249,9 @@ public:
 
     bool connected;
 private:
+    ros::Publisher GPSPublisher;
+    ros::Publisher RTCMPublisher;
+    ros::NodeHandle * nh;
     unsigned baud;
     std::string port;
     float surveyAccuracy;

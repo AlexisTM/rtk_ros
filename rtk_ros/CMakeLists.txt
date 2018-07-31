@@ -10,6 +10,7 @@ add_compile_options(-std=c++11)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   mavros_msgs
+  sensor_msgs
   serial
 )
 
@@ -105,7 +106,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES rtk_ros_lib
-  CATKIN_DEPENDS mavros_msgs roscpp serial
+  CATKIN_DEPENDS mavros_msgs roscpp serial sensor_msgs
 #  DEPENDS system_lib
 )
 

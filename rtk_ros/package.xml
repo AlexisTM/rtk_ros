@@ -15,6 +15,7 @@
   <!-- Use depend as a shortcut for packages that are both build and exec dependencies -->
   <depend>roscpp</depend>
   <depend>serial</depend>
+  <depend>sensor_msgs</depend>
   <depend>mavros_msgs</depend>
   <buildtool_depend>catkin</buildtool_depend>
 
