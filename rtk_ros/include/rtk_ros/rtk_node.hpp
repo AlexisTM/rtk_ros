@@ -154,16 +154,16 @@ public:
         msg.position_covariance_type = sensor_msgs::NavSatFix::COVARIANCE_TYPE_APPROXIMATED;
         ROS_WARN_STREAM("** Publish pose **" 
             << std::endl << "altitude: " << reportGPSPos.alt
-            << std::endl << "fix type: " << reportGPSPos.fix_type
+            << std::endl << "fix type: " << (int)reportGPSPos.fix_type
             << std::endl << "HDOP: "     << reportGPSPos.hdop << "\t VDOP" << reportGPSPos.vdop
             << std::endl << "lat: " << reportGPSPos.lat << "\t lon:" << reportGPSPos.lon
             << std::endl << "heading: " << reportGPSPos.heading
-            << std::endl << "sat used: " << reportGPSPos.satellites_used);
+            << std::endl << "sat used: " << (int)reportGPSPos.satellites_used);
         GPSPublisher.publish(msg);
     };
 
     void publishGPSSatellite() {
-        ROS_WARN_STREAM("*****I see " << pReportSatInfo->count << " sattelites");
+        ROS_WARN_STREAM("*****I see " << (int)pReportSatInfo->count << " sattelites");
         // pReportSatInfo
     };
 
@@ -237,9 +237,10 @@ public:
                 break;
             }
 
-            case GPSCallbackType::setClock:
+            case GPSCallbackType::setClock: {
                 ROS_WARN("Set clock");
                 break;
+            }
         }
 
         ROS_WARN("Do nothing");

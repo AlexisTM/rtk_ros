@@ -15,9 +15,9 @@ int main(int argc, char *argv[])
     ros::NodeHandle pnh("~");
 
     std::string port = "/dev/ttyACM0";
-    int32_t baud = 19200;
+    int32_t baud = 115200;
     float surveyAccuracy = 4.0;
-    float surveyDuration = 15.0;
+    float surveyDuration = 90.0;
 
     pnh.param<std::string>("port", port, port);
     pnh.param<int32_t>("baud", baud, baud);
