@@ -43,10 +43,6 @@ public:
             delete pReportSatInfo;
             pReportSatInfo = nullptr;
         }
-        if (surveyInStatus) {
-            delete surveyInStatus;
-            surveyInStatus = nullptr;
-        }
     };
 
 
