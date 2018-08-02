@@ -99,9 +99,8 @@ public:
     };
 
     void run() {
-        ROS_WARN("Running");
         if (gpsDriver->configure(baud, GPSDriverUBX::OutputMode::RTCM) == 0) {
-
+            ROS_INFO("Configured");
             /* reset report */
             memset(&reportGPSPos, 0, sizeof(reportGPSPos));
 
@@ -152,7 +151,7 @@ public:
         msg.position_covariance[4] = reportGPSPos.eph; // or hdop
         msg.position_covariance[8] = reportGPSPos.epv; // or vdop
         msg.position_covariance_type = sensor_msgs::NavSatFix::COVARIANCE_TYPE_APPROXIMATED;
-        ROS_WARN_STREAM("** Publish pose **" 
+        ROS_DEBUG_STREAM("** Publish pose **" 
             << std::endl << "altitude: " << reportGPSPos.alt
             << std::endl << "fix type: " << (int)reportGPSPos.fix_type
             << std::endl << "HDOP: "     << reportGPSPos.hdop << "\t VDOP" << reportGPSPos.vdop
@@ -163,17 +162,17 @@ public:
     };
 
     void publishGPSSatellite() {
-        ROS_WARN_STREAM("*****I see " << (int)pReportSatInfo->count << " sattelites");
+        ROS_WARN_STREAM_THROTTLE(0.1, "I see " << (int)pReportSatInfo->count << " sattelites");
         // pReportSatInfo
     };
 
     void connect_gps() {
         // dynamic model
         uint8_t stationary_model = 2;
-        ROS_WARN("Connect Driver");
+        ROS_INFO("Connect Driver");
         gpsDriver = new GPSDriverUBX(GPSDriverUBX::Interface::UART, &callbackEntry, this, &reportGPSPos, pReportSatInfo, stationary_model);
         gpsDriver->setSurveyInSpecs(surveyAccuracy * 10000, surveyDuration);
-        ROS_WARN("Configure survey");
+        ROS_INFO("Configure survey");
         memset(&reportGPSPos, 0, sizeof(reportGPSPos)); // Reset report
     };
 
@@ -198,7 +197,7 @@ public:
         int bytes_written = 0;
         switch (type) {
             case GPSCallbackType::readDeviceData: {
-                ROS_WARN("Read more data");
+                ROS_DEBUG("Read more data");
                 
                 if (serial->available() == 0) {
                     int timeout = *((int *) data1);
@@ -209,7 +208,7 @@ public:
                 return (int)serial->read((uint8_t *) data1, data2);
             }
             case GPSCallbackType::writeDeviceData: {
-                ROS_WARN("Write device data");
+                ROS_DEBUG("Write device data");
                 bytes_written = serial->write((uint8_t *) data1, data2);
                 if (bytes_written == data2) {
                     return data2;
@@ -218,19 +217,19 @@ public:
             }
 
             case GPSCallbackType::setBaudrate: {
-                ROS_WARN("Set baudrate");
+                ROS_DEBUG("Set baudrate");
                 serial->setBaudrate(data2);
                 return true;
             }
 
             case GPSCallbackType::gotRTCMMessage: {
-                ROS_WARN("RTCM");
+                ROS_FATAL("RTCM");
                 gotRTCMData((uint8_t*) data1, data2);
                 break;
             }
 
             case GPSCallbackType::surveyInStatus: {
-                ROS_WARN("Survey");
+                ROS_DEBUG("Survey");
                 surveyInStatus = (SurveyInStatus*)data1;
                 ROS_DEBUG_STREAM("Survey-in status: " << surveyInStatus->duration  << " cur accuracy: " << surveyInStatus->mean_accuracy 
                         << " valid:" << (int)(surveyInStatus->flags & 1) << " active: " << (int)((surveyInStatus->flags>>1) & 1));
@@ -238,12 +237,15 @@ public:
             }
 
             case GPSCallbackType::setClock: {
-                ROS_WARN("Set clock");
+                ROS_DEBUG("Set clock");
+                break;
+            }
+            default: {
+                ROS_FATAL_STREAM("Do nothing? " << (int)type);
                 break;
             }
         }
 
-        ROS_WARN("Do nothing");
         return 0;
     };
 
