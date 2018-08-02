@@ -1,0 +1,3 @@
+[submodule "rtk_ros/include/rtk_ros/GpsDrivers"]
+	path = rtk_ros/include/rtk_ros/GpsDrivers
+	url = http://github.com/AlexisTM/GpsDrivers
