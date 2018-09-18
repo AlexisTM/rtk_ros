@@ -21,4 +21,3 @@ Running
 rosrun rtk_ros rtk_ros_node _port:=/dev/ttyACM0
 ```
 
-It will 
