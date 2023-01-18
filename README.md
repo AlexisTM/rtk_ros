@@ -1,6 +1,8 @@
 ROS RTK node for UBX M8P GPS base station
 =========================================
 
+> Due to the lack of hardware available to me, this project goes unmaintained. 
+
 This node is made to work with Mavros's RTK plugin: https://github.com/mavlink/mavros/blob/ros2/mavros_extras/src/plugins/gps_rtk.cpp
 
 Installation
